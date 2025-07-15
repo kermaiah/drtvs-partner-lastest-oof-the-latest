@@ -1,6 +1,8 @@
 // ============================
 // ✅ deploy-commands.js
 // ============================
+const express = require('express');
+const PORT = 3000;
 require('dotenv').config();
 const { REST, Routes } = require('discord.js');
 const fs = require('fs');
@@ -33,3 +35,14 @@ const rest = new REST({ version: '10' }).setToken(TOKEN);
     console.error('❌ Error reloading commands:', error);
   }
 })();
+
+// Keep-alive server
+express().get('/', (_, res) => res.send('Bot is online')).listen(PORT, () => {
+  console.log(`🌐 Express server running on port ${PORT}`);
+});
+
+// Keep-alive server
+express().get('/', (_, res) => res.send('Bot is online')).listen(PORT, () => {
+  console.log(`🌐 Express server running on port ${PORT}`);
+});
+
