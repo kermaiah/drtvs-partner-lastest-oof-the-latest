@@ -1,5 +1,5 @@
 // ============================
-// ✅ index.js (Updated)
+// ✅ index.js (Updated with Slash Auto-Deploy)
 // ============================
 const {
   Client,
@@ -10,9 +10,10 @@ const {
   ActionRowBuilder,
   EmbedBuilder,
   Events,
-  PermissionsBitField // ✅ Add this line
+  PermissionsBitField,
+  REST,
+  Routes
 } = require('discord.js');
-require('./deploy-commands');
 const fs = require('fs');
 const express = require('express');
 const PORT = 3000;
@@ -33,6 +34,28 @@ const commandFiles = fs.readdirSync('./commands').filter(file => file.endsWith('
 for (const file of commandFiles) {
   const command = require(`./commands/${file}`);
   client.commands.set(command.data.name, command);
+}
+
+// 📌 Auto-Register Slash Commands
+async function registerCommands() {
+  const commands = [];
+  for (const file of commandFiles) {
+    const command = require(`./commands/${file}`);
+    commands.push(command.data.toJSON());
+  }
+
+  const rest = new REST({ version: '10' }).setToken(process.env.TOKEN);
+
+  try {
+    console.log('🔁 Registering slash commands...');
+    await rest.put(
+      Routes.applicationCommands(process.env.CLIENT_ID),
+      { body: commands }
+    );
+    console.log('✅ Slash commands registered successfully.');
+  } catch (error) {
+    console.error('❌ Failed to register slash commands:', error);
+  }
 }
 
 // Slash + Button Handler
@@ -59,7 +82,6 @@ client.on('messageCreate', async (message) => {
   const isTicket = message.channel.name?.startsWith('partner-');
   if (!isTicket) return;
 
-  // Check if this ticket belongs to the sender
   const { QuickDB } = require('quick.db');
   const db = new QuickDB();
   const ticketOwnerId = await db.get(`ticket_${message.author.id}`);
@@ -68,15 +90,12 @@ client.on('messageCreate', async (message) => {
   const hasInvite = /discord\.gg\/([a-zA-Z0-9-]+)/i.test(message.content);
   const inviteCode = message.content.match(/discord\.gg\/([a-zA-Z0-9-]+)/i)?.[1];
 
-  // Allow admins or bot or if not invite link
   if (!hasInvite || message.member.permissions.has(PermissionsBitField.Flags.Administrator)) return;
 
-  // If user is not the ticket creator, block them from sending invites
   if (!isTicketOwner) {
     return message.delete().catch(() => {});
   }
 
-  // Validate invite
   try {
     await client.fetchInvite(inviteCode);
   } catch (err) {
@@ -86,7 +105,6 @@ client.on('messageCreate', async (message) => {
     });
   }
 
-  // ✅ If valid and user is allowed, proceed as usual
   const logChannelId = await db.get('logChannel');
   const logChannel = message.guild.channels.cache.get(logChannelId);
   if (!logChannel) return;
@@ -122,8 +140,10 @@ client.on('messageCreate', async (message) => {
   });
 });
 
-client.once('ready', () => {
+// Bot ready
+client.once('ready', async () => {
   console.log(`${client.user.tag} is online.`);
+  await registerCommands(); // 🔁 Auto-register slash commands here
 });
 
 // Keep-alive server
