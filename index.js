@@ -12,6 +12,7 @@ const {
   Events,
   PermissionsBitField // ✅ Add this line
 } = require('discord.js');
+require('./deploy-commands');
 const fs = require('fs');
 const express = require('express');
 const PORT = 3000;
